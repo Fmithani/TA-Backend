@@ -2,13 +2,12 @@
   "name": "terrainart",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "engines": {
-    "node": ">=14.15",
+    "node": ">=14",
     "npm": ">=6"
   },
   "scripts": {
-    "start": "node ./bin/www.js"
+    "start": "node ./bin/www"
   },
   "dependencies": {
     "ajv": "^8.6.3",
@@ -20,6 +19,7 @@
     "dotenv": "^10.0.0",
     "express": "^4.17.1",
     "isset": "^1.0.4",
+    "moment": "^2.29.1",
     "mongoose": "^6.0.7",
     "morgan": "^1.10.0",
     "multer": "^1.4.3"
@@ -27,5 +27,4 @@
   "devDependencies": {
     "nodemon": "^2.0.7"
   }
-  
 }

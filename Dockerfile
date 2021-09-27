@@ -1,5 +1,5 @@
 # Intialize Container and install NodeJs
-FROM node:14.15-alpine
+FROM node:14-alpine
 # Set Env in Production mode
 ENV NODE_ENV=production
 # Working Directory of Container

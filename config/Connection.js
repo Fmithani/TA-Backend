@@ -1,10 +1,10 @@
 'use strict';
-import Dotenv from 'dotenv'
-const dotenv = Dotenv.config()
+const dotenv = require('dotenv').config()
 
-export const URI = `${process.env.DILET}://${process.env.HOST}/${process.env.DATABASE}`
-
-export const POOL  =  {
+module.exports = {
+    URI :   `${process.env.DILET}://${process.env.HOST}/${process.env.DATABASE}`,
+    POOL:   {
                 useNewUrlParser: true,
                 useUnifiedTopology: true,
-            }
+            },
+}

@@ -1,6 +1,6 @@
 'use strict';
-import { URI, POOL } from './Connection.js'
-import mongoose from 'mongoose'
+const { URI, POOL } = require('./Connection')
+const mongoose = require('mongoose')
 
 mongoose.connect(URI, POOL).then(
   console.log(`Connection Exstablised in PORT: ${process.env.PORT || 3000}`)
@@ -9,7 +9,7 @@ mongoose.connect(URI, POOL).then(
 const conn = mongoose.connection;
 conn.on('error', console.error.bind(console, `connection error:`));
 conn.once('open', () => {
-  console.log(`MongoDb Connected Successfully`)
+  console.log(`Database Connected Successfully`)
 });
 
-export default conn
+module.export = conn

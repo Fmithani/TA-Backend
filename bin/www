@@ -4,12 +4,11 @@
  * Module dependencies.
  */
 
-import app  from '../app.js'
-import Debug  from 'debug'
-import http  from 'http'
+const app = require('../app');
+const debug = require('debug')('terrainart:server');
+const http = require('http');
 
-const debug = Debug('terrainart:server')
-/** ;
+/**
  * Get port from environment and store in Express.
  */
 

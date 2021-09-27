@@ -1,11 +1,8 @@
 'use strict';
 
-export const SetDirectoryPath = (dirname) => process.env.DIR_PATH = dirname
-
-export const Response = (res, statuscode, status, messaege, data)=>{
-    res.status(statuscode).json({
-        status : status,
-        messaege : messaege,
-        data
-    })
-}
+exports.Response = (res, status_code, status, message, data = null) => res.status(status_code).json({
+    status_code: status_code,
+    status: status,
+    message: message,
+    data: data,
+});

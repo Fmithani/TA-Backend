@@ -1,10 +1,12 @@
 'use strict';
-import pkg from 'mongoose';
-const { model } = pkg;
-import conn from './Configration.js'
+const  { model } = require('mongoose');
+const conn = require('./Configration')
 const db = {}
 
+/* Utility */
+db.conn = conn
 
-db.Conn = conn
+/* Models */
 
-export default db
+
+module.exports = db
