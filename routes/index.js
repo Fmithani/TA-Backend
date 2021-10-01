@@ -1,11 +1,19 @@
 'use strict'
+
+const image = require('../controller/image.controller');
+
 const express = require('express');
 const router = express.Router();
-// import controllers
-const { getData } = require('../controller')
+let upload = require('../config/multer.config.js');
 
+const cors = require('cors')
+const app = express()
+ 
+app.use(cors())
 
-router.get('/getdata', getData);
-
+router.post('/api/image', image.postImage);
+router.get('/api/image', image.getImageById);
+router.get('/api/images', image.getImages);
+router.post('/api/image-upload', upload.single('file'), image.uploadImage);
 
 module.exports = router;

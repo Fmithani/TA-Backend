@@ -5,7 +5,7 @@
  */
 
 const app = require('../app');
-const debug = require('debug')('terrainart:server');
+const debug = require('debug')('ta-backend:server');
 const http = require('http');
 
 /**
@@ -13,6 +13,7 @@ const http = require('http');
  */
 
 const port = normalizePort(process.env.PORT || '3000');
+console.log("Server running on: ",port);
 app.set('port', port);
 
 /**
