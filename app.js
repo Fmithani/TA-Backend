@@ -1,59 +1,77 @@
 'use strict';
-// import the require files
-const createError = require('http-errors');
+
 const express = require('express');
+const app = express();
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const logger = require('morgan');
-const dotenv = require('dotenv').config()
-const compression = require('compression');
+const createError = require('http-errors');
+require('dotenv').config();
+var indexRouter = require('./routes/index');
+const ejs = require('ejs')
 
-// Import all routes
-const indexRouter = require('./routes/index');
+//console.log = function() {}
 
-// Intialize the app and development things
-const app = express();
-app.use(logger('dev'));
-app.use(express.json());
-app.use(express.urlencoded({ extended: false }));
-app.use(cookieParser());
+// ---------------------------------------------
+// --------- Parsing the body ------------------
+// ---------------------------------------------
+app.use(express.urlencoded({
+  limit: '500mb',
+  extended: true
+}));
+app.use(express.json({
+  limit: '500mb',
+  extended: true
+}));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Access to Origin and Methods
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-    if (req.method === 'OPTIONS') {
-        res.header('Access-Control-Allow-Methods', 'POST');
-        return res.status(200).json({});
-    }
-    next();
+// ---------------------------------------------
+// --------- set access permission to origin ---
+// ---------------------------------------------
+app.use(function (req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "*");
+  next();
 });
-
-// Declair the routes
+// ---------------------------------------------
+// --------- Calling Router --------------------
+// ---------------------------------------------
 app.use('/', indexRouter);
 
-// Compress the resutl
-app.use(compression());
+// ---------------------------------------------
+// --------- view engine setup -----------------
+// ---------------------------------------------
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
 
-// catch 404 and forward to error handler
-app.use((req, res, next) => {
-    const error = new Error("Request Not Found");
-    error.status = 404;
-    next(error);
+// ---------------------------------------------
+// --------- use application utilities ---------
+// ---------------------------------------------
+app.use(express.json());
+app.use(express.urlencoded({
+  extended: false
+}));
+app.use(cookieParser());
+
+
+// ---------------------------------------------
+// --- catch 404 and forward to error handler --
+// ---------------------------------------------
+app.use(function (req, res, next) {
+  next(createError(404));
 });
 
-// error handler
-app.use((error, req, res, next) => {
-    // console.warn(error);
-    res.status(error.status || 500)
-    let message = (error.status) ? error.message : "Internal Server Error"
-    console.warn(error)
-    res.json({
-        error: true,
-        message: message,
-    })
-    return false;
+// ---------------------------------------------
+// ---------- error handler --------------------
+// ---------------------------------------------
+app.use(function(err, req, res, next) {
+  // set locals, only providing error in development
+  res.locals.message = err.message;
+  res.locals.error = req.app.get('env') === 'development' ? err : {};
+
+  // render the error page
+  res.status(err.status || 500);
+  res.render('error');
 });
 
 module.exports = app;

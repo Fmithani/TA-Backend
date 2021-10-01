@@ -1,7 +1,7 @@
 'use strict';
 
-exports.Response = (res, status_code, status, message, data = null) => res.status(status_code).json({
-    status_code: status_code,
+exports.Response = (res, status, message, data = null) => res.status(200).json({
+    statusCode: 200,
     status: status,
     message: message,
     data: data,
