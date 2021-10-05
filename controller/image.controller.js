@@ -17,7 +17,8 @@ const s3Client = new AWS.S3({
 const uploadParams = {
     Bucket: process.env.BUCKET_S3, 
     Key: '', // pass key
-    Body: null, // pass file body
+    Body: null, // pass file body,
+    Metadata: null,
 };
 
 const s3 = {};
@@ -34,15 +35,19 @@ exports.uploadImage = async (req, res, next) => {
     try {
         let s3Client = s3.s3Client;
 	    let params = s3.uploadParams;
-	
+
 	    params.Key = req.file.originalname;
 	    params.Body = req.file.buffer;
+	    params.Metadata = {
+            "Content-Type": req.file.mimetype,
+        };
 
-        s3Client.upload(params, (err, data) => {
+        s3Client.upload(params, async (err, data) => {
             if (err) {
                 return Response(res, false, MESSAGE.FILE_NOT_UPLOAD, err);
             }
-            return Response(res, true, MESSAGE.FILE_SUCCESSFULLY, data);
+
+            return await saveImage(req, res, data);
         });
     }
     catch(error) {
@@ -106,8 +111,38 @@ exports.getImageById = async (req, res, next) => {
   });
 };
 
-// Add a fruit
-exports.postImage = async (req, res, next) => {
+saveImage = async (req, res, _data) => {
+    
+    model.createImageTable();
+
+    if (isDev) {
+      AWS.config.update(config.aws_local_config);
+    } else {
+      AWS.config.update(config.aws_remote_config);
+    }
+
+    const file_name = _data.key;
+    // Not actually unique and can create problems.
+    const imageId = uuidv4();
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const params = {
+      TableName: tables.IMAGES,
+      Item: {
+        image_id: imageId,
+        file_name,
+      },
+    };
+    docClient.put(params, function (err, data) {
+      if (err) {
+          return Response(res, false, MESSAGE.RECORD_NOT_SAVE, err);
+      } else {
+            params.Item.Url = _data.Location;
+          return Response(res, true, MESSAGE.RECORD_SAVE, params.Item);
+      }
+    });  
+}
+
+exports.postImageV1 = async (req, res, next) => {
 
   model.createImageTable();
 
