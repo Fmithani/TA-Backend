@@ -8,8 +8,11 @@ const createError = require('http-errors');
 require('dotenv').config();
 var indexRouter = require('./routes/index');
 const ejs = require('ejs')
+const logger = require('morgan');
 
 //console.log = function() {}
+
+app.use(logger('dev'));
 
 // ---------------------------------------------
 // --------- Parsing the body ------------------
