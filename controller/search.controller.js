@@ -27,12 +27,26 @@ const uploadParams = {
 // s3.uploadParams = uploadParams;
 
 const cache = new LRU({
-  maxAge: 0,
+  maxAge: -1,
   max: 500000000000,
   length: (label) => {
     return label.length * 100;
   },
 });
+
+function compareObjects(object1, object2, key) {
+  const obj1 = object1['confidence'][key];
+  const obj2 = object2['confidence'][key];
+
+  if (obj1 > obj2) {
+    return -1
+  }
+  if (obj1 < obj2) {
+    return 1
+  }
+  return 0
+}
+
 
 // Get a image search by label
 exports.getSearchResult = async (req, res, next) => {
@@ -42,12 +56,16 @@ exports.getSearchResult = async (req, res, next) => {
     AWS.config.update(config.aws_remote_config);
   }
   let label = req.query.label;
+  
 
   // Find in cache
   let getItemFromCache = cache.get(label);
-  if (getItemFromCache && getItemFromCache !== undefined) {    
+
+  if (getItemFromCache && getItemFromCache !== undefined) {
+   
     return Response(res, true, MESSAGE.RECORD_RETRIVED, getItemFromCache);
-  } else {   
+  } else {
+    console.log("else");
     // Find in DB
     const docClient = new AWS.DynamoDB.DocumentClient();
     const params = {
@@ -59,15 +77,22 @@ exports.getSearchResult = async (req, res, next) => {
     };
 
     docClient.scan(params, function (err, data) {
+      
       if (err) {
         return Response(res, false, MESSAGE.RECORD_NOT_RETRIVED, err);
       } else {
         const { Items } = data;
-        let Item = Items[0];
-        if (Item.file_name !== undefined)
-          Item.url = config.awsS3BaseUrl + "" + Item.file_name ?? "";
-        cache.set(label, Item);
-        return Response(res, true, MESSAGE.RECORD_RETRIVED, Item);
+       
+
+        for (let i = 0; i < Items.length; i++) {
+          if (Items[i].file_name !== undefined)
+            Items[i].url = config.awsS3BaseUrl + "" + Items[i].file_name ?? "";
+        }
+        Items.sort((item1, item2) => {
+            return compareObjects(item1, item2, label)
+          })
+        //cache.set(label, Items);
+        return Response(res, true, MESSAGE.RECORD_RETRIVED, Items);
       }
     });
   }
