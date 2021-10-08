@@ -122,7 +122,12 @@ saveImage = async (req, res, image) => {
   
   image = await getLablesRekognition(image);
 
-//   console.log('image => ', image);
+  // Face Detection 
+  let faceKeyword = ['Person', 'Human', 'Face'];
+  let haveFace = faceKeyword.every(i => image.LabelsArray.includes(i));
+  if (haveFace) {
+      image = await getFaceRekognition(image);
+  }
 
   const file_name = image.key;
   // Not actually unique and can create problems.
@@ -135,13 +140,14 @@ saveImage = async (req, res, image) => {
       file_name,
       labels: image.LabelsArray,
       confidence: image.ConfidenceObj,
+      face: image?.FaceDetails,
     },
   };
   docClient.put(params, function (err, data) {
     if (err) {
       return Response(res, false, MESSAGE.RECORD_NOT_SAVE, err);
     } else {
-      params.Item.Url = image.Location;
+      params.Item.url = image.Location;
       return Response(res, true, MESSAGE.RECORD_SAVE, params.Item);
     }
   });
@@ -189,6 +195,34 @@ getLablesRekognition = (imageData) => {
     });
   });
 };
+
+getFaceRekognition = (imageData) => {
+    return new Promise((resolve, reject) => {
+      // console.log('label detection =>', imageData);
+  
+      var params = {
+        Image: {
+          S3Object: {
+            Bucket: process.env.BUCKET_S3,
+            Name: imageData.key,
+          },
+        },
+      };
+  
+      const rekognition = new AWS.Rekognition();
+  
+      rekognition.detectFaces(params, function (err, data) {
+        if (err) {
+          reject(imageData);
+        } else {
+
+          imageData.FaceDetails = data.FaceDetails;
+  
+          resolve(imageData);
+        }
+      });
+    });
+  };
 
 exports.labelRekognitionV1 = async (req, res, next) => {
   if (isDev) {
