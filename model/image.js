@@ -16,12 +16,12 @@ var dynamodb = new AWS.DynamoDB();
 var params = {
     TableName : tables.IMAGES,
     KeySchema : [ {
-        AttributeName : "image_id",
+        AttributeName : "_id",
         KeyType : "HASH"
     },
     ],
     AttributeDefinitions : [ {
-        AttributeName : "image_id",
+        AttributeName : "_id",
         AttributeType : "S"
     }],
     ProvisionedThroughput : {
@@ -33,8 +33,7 @@ var params = {
 dynamodb.createTable(params, function(err, data) {
 
     if (err) {
-        if (err.code === "ResourceInUseException"
-                && err.message === "Cannot create preexisting table") {
+        if (err.code === "ResourceInUseException") {
             console.log("message ====>" + err.message);
         } else {
             console.error("Unable to create table. Error JSON:", JSON
