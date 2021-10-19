@@ -5,6 +5,7 @@ const model = require("../model/image");
 const { v4: uuidv4 } = require("uuid");
 const { Response } = require("../config/Util");
 const MESSAGE = require("../config/messages");
+const axios = require('axios');
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -26,36 +27,40 @@ s3.s3Client = s3Client;
 s3.uploadParams = uploadParams;
 
 exports.uploadImage = async (req, res, next) => {
+
   if (isDev) {
     AWS.config.update(config.aws_local_config);
   } else {
     AWS.config.update(config.aws_remote_config);
   }
-  // console.log(config.aws_remote_config);
-  try {
-    let s3Client = s3.s3Client;
-    let params = s3.uploadParams;
-
-    params.Key = req.file.originalname;
-    params.Body = req.file.buffer;
-    params.Metadata = {
-      "Content-Type": req.file.mimetype,
-    };
-
-    s3Client.upload(params, async (err, data) => {
-      if (err) {
-        return Response(res, false, MESSAGE.FILE_NOT_UPLOAD, err);
-      }
-
-      return await saveImage(req, res, data);
+  
+  uploadNSave(req, res).then((uploaded) => {
+    let _image_id = [];
+    
+    uploaded.map((img) => {
+      _image_id.push(img._id);
     });
-  } catch (error) {
-    return Response(res, false, MESSAGE.UPLOADING_ERROR);
-  }
+
+    axios({
+      method: 'POST',
+      url:  process.env.imageRecWebUrl + 'api/image-rekognition',
+      data: {
+        image_id: _image_id 
+      },
+      headers: { 'Authorization': 'Bearer VEEtQmFja2VuZCBBUEkgQWNjZXNzIFRva2VuClByb2plY3Q6Tm9kZUpTMTQuMTM='}
+    }).then((response) => {
+      // console.log('axios response => ', response);
+      return Response(res, true, MESSAGE.FILE_SUCCESSFULLY, uploaded);
+    }).catch((error) => {
+      // console.log('axios error => ', error);
+    });
+
+  });
+
 };
 
 // Gets all fruits
-exports.getImages = async (req, res, next) => {
+exports.getImages_V1 = async (req, res, next) => {
   if (isDev) {
     AWS.config.update(config.aws_local_config);
   } else {
@@ -79,7 +84,7 @@ exports.getImages = async (req, res, next) => {
 }; // end of app.get(/api/fruits)
 
 // Get a single fruit by id
-exports.getImageById = async (req, res, next) => {
+exports.getImageById_V1 = async (req, res, next) => {
   if (isDev) {
     AWS.config.update(config.aws_local_config);
   } else {
@@ -109,176 +114,83 @@ exports.getImageById = async (req, res, next) => {
   });
 };
 
-saveImage = async (req, res, image) => {
+
+uploadNSave = async(req, res) => {
+  return new Promise((resolve, reject) => {
   
-  model.createImageTable();
-
-  if (isDev) {
-    AWS.config.update(config.aws_local_config);
-  } else {
-    AWS.config.update(config.aws_remote_config);
-  }
-
+      let s3Client = s3.s3Client;
+      let params = s3.uploadParams;
   
-  image = await getLablesRekognition(image);
+      model.createImageTable();
 
-  // Face Detection 
-  let faceKeyword = ['Person', 'Human', 'Face'];
-  let haveFace = faceKeyword.every(i => image.LabelsArray.includes(i));
-  if (haveFace) {
-      image = await getFaceRekognition(image);
-  }
-
-  const file_name = image.key;
-  // Not actually unique and can create problems.
-  const imageId = uuidv4();
-  const docClient = new AWS.DynamoDB.DocumentClient();
-  const params = {
-    TableName: tables.IMAGES,
-    Item: {
-      _id: imageId,
-      file_name,
-      labels: image.LabelsArray,
-      confidence: image.ConfidenceObj,
-      face: image?.FaceDetails,
-    },
-  };
-  docClient.put(params, function (err, data) {
-    if (err) {
-      return Response(res, false, MESSAGE.RECORD_NOT_SAVE, err);
-    } else {
-      params.Item.url = image.Location;
-      return Response(res, true, MESSAGE.RECORD_SAVE, params.Item);
-    }
+      let _res_error = [];
+      let _res = [];
+      let _total_files = req.files.length;
+      let _upload_files = 0;
+      let _saved_files = 0;
+  
+      req.files.map((file) => {
+        params.Key = file.originalname;
+        params.Body = file.buffer;
+        params.Metadata = {
+          "Content-Type": file.mimetype,
+        };
+  
+        s3Client.upload(params, async (err, data) => {
+          if (err) {
+            _res_error.push(err);
+            _upload_files++;
+            console.log('error on upload => ', err);
+          } else {
+            _upload_files++;
+            saveImage(req, res, data)
+              .then((success) => {
+                _res.push(success);
+                _saved_files++;
+                if (_saved_files >= _total_files) {
+                  resolve(_res);
+                }
+              })
+              .catch((fail) => {
+                _res_error.push(fail);
+                _saved_files++;
+  
+                console.log('error on save => ', fail);
+              });
+          }
+        });
+      });
+   
   });
 };
 
-getLablesRekognition = (imageData) => {
+saveImage = async (req, res, image) => {
   return new Promise((resolve, reject) => {
-    // console.log('label detection =>', imageData);
+    if (isDev) {
+      AWS.config.update(config.aws_local_config);
+    } else {
+      AWS.config.update(config.aws_remote_config);
+    }
 
-    var params = {
-      Image: {
-        S3Object: {
-          Bucket: process.env.BUCKET_S3,
-          Name: imageData.key,
-        },
+    const file_name = image.key;
+    const imageId = uuidv4();
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const params = {
+      TableName: tables.IMAGES,
+      Item: {
+        _id: imageId,
+        file_name,
       },
     };
 
-    imageData.LabelsArray = [];
-    imageData.ConfidenceObj = {};
-
-    const rekognition = new AWS.Rekognition();
-
-    rekognition.detectLabels(params, function (err, data) {
+    docClient.put(params, function (err, data) {
       if (err) {
-        // console.log('error => ', err);
-        reject(imageData);
+        reject(err);
       } else {
-        // console.log('success=>', data);
-        var labelArray = [];
-        var confidenceObj = {};
-
-        data.Labels.map((obj) => {
-          labelArray.push(obj.Name);
-          confidenceObj[obj.Name] = obj.Confidence;
-        });
-
-        imageData.LabelsArray = labelArray;
-        imageData.ConfidenceObj = confidenceObj;
-
-        //   console.log('image data => ', imageData);
-
-        resolve(imageData);
+        params.Item.url = image.Location;
+        resolve(params.Item);
       }
     });
-  });
-};
-
-getFaceRekognition = (imageData) => {
-    return new Promise((resolve, reject) => {
-      // console.log('label detection =>', imageData);
-  
-      var params = {
-        Image: {
-          S3Object: {
-            Bucket: process.env.BUCKET_S3,
-            Name: imageData.key,
-          },
-        },
-      };
-  
-      const rekognition = new AWS.Rekognition();
-  
-      rekognition.detectFaces(params, function (err, data) {
-        if (err) {
-          reject(imageData);
-        } else {
-
-          imageData.FaceDetails = data.FaceDetails;
-  
-          resolve(imageData);
-        }
-      });
-    });
-  };
-
-exports.labelRekognitionV1 = async (req, res, next) => {
-  if (isDev) {
-    AWS.config.update(config.aws_local_config);
-  } else {
-    AWS.config.update(config.aws_remote_config);
-  }
-
-  //input parameters
-  const { file_name } = req.body;
-
-  var params = {
-    Image: {
-      S3Object: {
-        Bucket: process.env.BUCKET_S3,
-        Name: file_name,
-      },
-    },
-  };
-
-  //Call AWS Rekognition Class
-  const rekognition = new AWS.Rekognition();
-
-  //Detect text
-  rekognition.detectLabels(params, function (err, data) {
-    if (err) {
-      console.log(err, err.stack); // an error occurred
-      return Response(res, false, MESSAGE.UNAUTHORISED_USER, err);
-    }
-    // console.log(data);           // successful response
-    else var labelArray = [];
-    var confidenceObj = {};
-
-    data.Labels.forEach((obj) => {
-      labelArray.push(obj.Name);
-      confidenceObj[obj.Name] = obj.Confidence;
-    });
-
-    data.LabelsArray = labelArray;
-    data.ConfidenceObj = confidenceObj;
-
-    return Response(res, true, MESSAGE.UNAUTHORISED_USER, data);
-
-    //console.log(data.TextDetections);
-
-    // for(var i = 0; i < data.TextDetections.length;i++){
-
-    //   //console.log(data.TextDetections[i].Type)
-
-    //   if(data.TextDetections[i].Type === 'LINE')
-    //   {
-    //     detectedTXT = data.TextDetections[i].DetectedText;
-    //   }
-    // }
-
-    // console.log(detectedTXT);
   });
 };
 

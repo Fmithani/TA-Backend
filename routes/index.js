@@ -15,11 +15,14 @@ app.use(cors())
 
 router.use(validate.Valid);
 
-router.get('/api/image', image.getImageById);
-router.get('/api/images', image.getImages);
-router.post('/api/image-upload', upload.single('file'), image.uploadImage);
+
+// router.get('/api/image', image.getImageById);
+// router.get('/api/images', image.getImages);
+router.post('/api/image-upload', upload.array('files'), image.uploadImage);
+
 
 router.get('/api/search', search.getSearchResult);
+
 
 // router.post('/api/image-rekognition', image.labelRekognition);
 
