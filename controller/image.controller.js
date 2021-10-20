@@ -60,7 +60,7 @@ exports.uploadImage = async (req, res, next) => {
 };
 
 // Gets all fruits
-exports.getImages_V1 = async (req, res, next) => {
+exports.getImages = async (req, res, next) => {
   if (isDev) {
     AWS.config.update(config.aws_local_config);
   } else {
