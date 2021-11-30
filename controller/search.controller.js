@@ -5,6 +5,8 @@ const model = require("../model/image");
 const { v4: uuidv4 } = require("uuid");
 const { Response } = require("../config/Util");
 const MESSAGE = require("../config/messages");
+const { uploadImageSearch } = require('../controller/image.controller');
+const axios = require("axios");
 
 const LRU = require("lru-cache");
 
@@ -97,3 +99,92 @@ exports.getSearchResult = async (req, res, next) => {
     });
   }
 };
+
+getImageObject = async (image_id) => {
+  return new Promise((resolve, reject) => {
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const params = {
+      TableName: tables.IMAGES,
+      FilterExpression: "#field = :data",
+      ExpressionAttributeNames: {
+        "#field": "_id",
+      },
+      ExpressionAttributeValues: {
+        ":data": image_id,
+      },
+    };
+
+    docClient.scan(params, function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+};
+
+exports.getSearchByImage = async (req, res, next) => {
+  
+  uploadImageSearch(req, res, next)
+  .then((image)=>{
+    //console.log('image upload res => ', image);
+    let _image_id = image.ETag;
+    let _image_name = image.key;
+
+    let _image_obj = {
+      image_id : _image_id,
+      image_name: _image_name,
+    }
+    
+    imageRekognitionAPI(_image_obj).then((resImgRekognise) => {
+      //console.log('axios label detection response => ', resImgRekognise);
+      
+      imageSearchAPI(resImgRekognise.data).then((resImgSearch) => {
+        //console.log('axios label search response => ', resImgSearch);
+        return Response(res, true, MESSAGE.RECORD_RETRIVED, resImgSearch.data.data);
+      })
+      .catch((errorSearch) => {
+        //console.log('axios seaerch error => ', errorSearch);
+        return Response(res, true, MESSAGE.RECORD_NOT_RETRIVED, null, 200, errorSearch);
+      });
+    })
+    .catch((errorRekognise) => {
+      //console.log('axios rekognise error => ', errorRekognise);
+      return Response(res, true, MESSAGE.RECORD_NOT_RETRIVED, null, 200, errorRekognise);
+    });
+  })
+  .catch((errorImage) => {
+    //console.log('axios image error => ', errorImage);
+    return Response(res, true, MESSAGE.RECORD_NOT_RETRIVED, null, 200, errorImage);
+  });
+}
+
+imageRekognitionAPI = async(_image_obj) => {
+  return axios({
+    method: "POST",
+    url: process.env.imageRecWebUrl + "api/image-rekognition-search",
+    data: {
+      image_id : _image_obj.image_id,
+      image_name: _image_obj.image_name,
+    },
+    headers: {
+      Authorization:
+        "Bearer VEEtQmFja2VuZCBBUEkgQWNjZXNzIFRva2VuClByb2plY3Q6Tm9kZUpTMTQuMTM=",
+    },
+  });
+}
+
+imageSearchAPI = async(_response) => {
+
+  let _label = _response.data.TopLabel;
+
+  return axios({
+    method: "GET",
+    url: process.env.imageSearchWebUrl + "api/search?label="+_label,
+    headers: {
+      Authorization:
+        "Bearer VEEtQmFja2VuZCBBUEkgQWNjZXNzIFRva2VuClByb2plY3Q6Tm9kZUpTMTQuMTM=",
+    },
+  });
+}

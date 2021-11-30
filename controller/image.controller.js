@@ -5,7 +5,7 @@ const model = require("../model/image");
 const { v4: uuidv4 } = require("uuid");
 const { Response } = require("../config/Util");
 const MESSAGE = require("../config/messages");
-const axios = require('axios');
+const axios = require("axios");
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -27,36 +27,38 @@ s3.s3Client = s3Client;
 s3.uploadParams = uploadParams;
 
 exports.uploadImage = async (req, res, next) => {
-
   if (isDev) {
     AWS.config.update(config.aws_local_config);
   } else {
     AWS.config.update(config.aws_remote_config);
   }
-  
+
   uploadNSave(req, res).then((uploaded) => {
     let _image_id = [];
-    
+
     uploaded.map((img) => {
       _image_id.push(img._id);
     });
 
     axios({
-      method: 'POST',
-      url:  process.env.imageRecWebUrl + 'api/image-rekognition',
+      method: "POST",
+      url: process.env.imageRecWebUrl + "api/image-rekognition",
       data: {
-        image_id: _image_id 
+        image_id: _image_id,
       },
-      headers: { 'Authorization': 'Bearer VEEtQmFja2VuZCBBUEkgQWNjZXNzIFRva2VuClByb2plY3Q6Tm9kZUpTMTQuMTM='}
-    }).then((response) => {
-      // console.log('axios response => ', response);
-      return Response(res, true, MESSAGE.FILE_SUCCESSFULLY, uploaded);
-    }).catch((error) => {
-      // console.log('axios error => ', error);
-    });
-
+      headers: {
+        Authorization:
+          "Bearer VEEtQmFja2VuZCBBUEkgQWNjZXNzIFRva2VuClByb2plY3Q6Tm9kZUpTMTQuMTM=",
+      },
+    })
+      .then((response) => {
+        // console.log('axios response => ', response);
+        return Response(res, true, MESSAGE.FILE_SUCCESSFULLY, uploaded);
+      })
+      .catch((error) => {
+        // console.log('axios error => ', error);
+      });
   });
-
 };
 
 // Gets all fruits
@@ -114,53 +116,72 @@ exports.getImageById_V1 = async (req, res, next) => {
   });
 };
 
-
-uploadNSave = async(req, res) => {
+uploadNSave = async (req, res) => {
   return new Promise((resolve, reject) => {
-  
-      let s3Client = s3.s3Client;
-      let params = s3.uploadParams;
-  
-      model.createImageTable();
+    let s3Client = s3.s3Client;
+    let params = s3.uploadParams;
 
-      let _res_error = [];
-      let _res = [];
-      let _total_files = req.files.length;
-      let _upload_files = 0;
-      let _saved_files = 0;
-  
-      req.files.map((file) => {
-        params.Key = file.originalname;
-        params.Body = file.buffer;
-        params.Metadata = {
-          "Content-Type": file.mimetype,
-        };
-  
-        s3Client.upload(params, async (err, data) => {
-          if (err) {
-            _res_error.push(err);
-            _upload_files++;
-            console.log('error on upload => ', err);
-          } else {
-            _upload_files++;
-            saveImage(req, res, data)
-              .then((success) => {
-                _res.push(success);
-                _saved_files++;
-                if (_saved_files >= _total_files) {
-                  resolve(_res);
-                }
-              })
-              .catch((fail) => {
-                _res_error.push(fail);
-                _saved_files++;
-  
-                console.log('error on save => ', fail);
-              });
-          }
-        });
+    model.createImageTable();
+
+    let _res_error = [];
+    let _res = [];
+    let _total_files = req.files.length;
+    let _upload_files = 0;
+    let _saved_files = 0;
+
+    req.files.map((file) => {
+      params.Key = file.originalname;
+      params.Body = file.buffer;
+      params.Metadata = {
+        "Content-Type": file.mimetype,
+      };
+
+      s3Client.upload(params, async (err, data) => {
+        if (err) {
+          _res_error.push(err);
+          _upload_files++;
+          console.log("error on upload => ", err);
+        } else {
+          _upload_files++;
+          saveImage(req, res, data)
+            .then((success) => {
+              _res.push(success);
+              _saved_files++;
+              if (_saved_files >= _total_files) {
+                resolve(_res);
+              }
+            })
+            .catch((fail) => {
+              _res_error.push(fail);
+              _saved_files++;
+
+              console.log("error on save => ", fail);
+            });
+        }
       });
-   
+    });
+  });
+};
+
+exports.uploadImageSearch = async (req, res) => {
+  return new Promise((resolve, reject) => {
+    let s3Client = s3.s3Client;
+    let params = s3.uploadParams;
+
+    params.Key = "Search_" + req.file.originalname;
+    params.Body = req.file.buffer;
+    params.Metadata = {
+      "Content-Type": req.file.mimetype,
+    };
+
+    s3Client.upload(params, async (err, data) => {
+      if (err) {
+        console.log("error on upload => ", err);
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
   });
 };
 
