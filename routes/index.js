@@ -21,6 +21,9 @@ router.post('/api/image-upload', upload.array('files'), image.uploadImage);
 
 router.post('/api/search-image', upload.single('file'), search.getSearchByImage);
 
+
+router.get('/api/common-values', image.getCommonValues);
+
 // router.get('/api/search', search.getSearchResult);
 // router.post('/api/image-rekognition', image.labelRekognition);
 

@@ -63,27 +63,40 @@ exports.uploadImage = async (req, res, next) => {
 
 // Gets all fruits
 exports.getImages = async (req, res, next) => {
-  if (isDev) {
-    AWS.config.update(config.aws_local_config);
-  } else {
-    AWS.config.update(config.aws_remote_config);
-  }
-  const docClient = new AWS.DynamoDB.DocumentClient();
-  const params = {
-    TableName: tables.IMAGES,
-  };
-  docClient.scan(params, function (err, data) {
-    if (err) {
-      return Response(res, false, MESSAGE.RECORD_NOT_RETRIVED, err);
-    } else {
-      const { Items } = data;
-      Items.forEach((r) => {
-        r.url = config.awsS3BaseUrl + "" + r.file_name ?? "";
-      });
-      return Response(res, true, MESSAGE.RECORD_RETRIVED, Items);
-    }
+  getImagesObj(req, res)
+  .then((result) => {
+    const { Items } = result;
+    Items.forEach((r) => {
+      r.url = config.awsS3BaseUrl + "" + r.file_name ?? "";
+    });
+    return Response(res, true, MESSAGE.RECORD_RETRIVED, Items);
+  })
+  .catch((error) => {
+    return Response(res, false, MESSAGE.RECORD_NOT_RETRIVED, error);
   });
 }; // end of app.get(/api/fruits)
+
+
+getImagesObj = async (req, res) => {
+  return new Promise((resolve, reject) => {
+    if (isDev) {
+      AWS.config.update(config.aws_local_config);
+    } else {
+      AWS.config.update(config.aws_remote_config);
+    }
+    const docClient = new AWS.DynamoDB.DocumentClient();
+    const params = {
+      TableName: tables.IMAGES,
+    };
+    docClient.scan(params, function (err, data) {
+      if (err) {
+        reject(err);
+      } else {
+        resolve(data);
+      }
+    });
+  });
+}
 
 // Get a single fruit by id
 exports.getImageById_V1 = async (req, res, next) => {
@@ -242,3 +255,45 @@ exports.postImageV1 = async (req, res, next) => {
     }
   });
 };
+
+  exports.getCommonValues = async (req, res, next) => {
+    getImagesObj(req, res)
+    .then((result) => {
+      let _artist_list = [...new Set(result.Items.map(({artist})=>artist))];
+      _artist_list = _artist_list.filter((v) => v != null);
+      
+      let _art_list = [...new Set(result.Items.map(({art_name})=>art_name))];
+      _art_list = _art_list.filter((v) => v != null);
+      
+      let _description_list = [...new Set(result.Items.map(({description})=>description))];
+      _description_list = _description_list.filter((v) => v != null);
+      
+      let _title_list = [...new Set(result.Items.map(({title})=>title))];
+      _title_list = _title_list.filter((v) => v != null);
+      
+      let _destination_list = [...new Set(result.Items.map(({destination})=>destination))];
+      _destination_list = _destination_list.filter((v) => v != null);
+      
+      let _medium_list = [...new Set(result.Items.map(({medium})=>medium))];
+      _medium_list = _medium_list.filter((v) => v != null);
+       
+      let _dimensions_list = [...new Set(result.Items.map(({dimensions})=>dimensions))];
+      _dimensions_list = _dimensions_list.filter((v) => v != null);
+      
+      let _response = {
+        artist_list: _artist_list,
+        art_list: _art_list,
+        description_list: _description_list,
+        title_list: _title_list,
+        destination_list: _destination_list,
+        medium_list: _medium_list,
+        dimensions_list: _dimensions_list
+      };
+
+      return Response(res, true, MESSAGE.RECORD_RETRIVED, _response);
+    })
+    .catch((error) => {
+      // console.log('error => ', error);
+      return Response(res, false, MESSAGE.RECORD_NOT_RETRIVED, error);
+    });
+  };
