@@ -280,6 +280,9 @@ exports.postImageV1 = async (req, res, next) => {
       let _dimensions_list = [...new Set(result.Items.map(({dimensions})=>dimensions))];
       _dimensions_list = _dimensions_list.filter((v) => v != null);
       
+      let _color_list = [...new Set(result.Items.map(({color})=>color))];
+      _color_list = _color_list.filter((v) => v != null);
+      
       let _response = {
         artist_list: _artist_list,
         art_list: _art_list,
@@ -287,7 +290,8 @@ exports.postImageV1 = async (req, res, next) => {
         title_list: _title_list,
         destination_list: _destination_list,
         medium_list: _medium_list,
-        dimensions_list: _dimensions_list
+        dimensions_list: _dimensions_list,
+        color_list: _color_list
       };
 
       return Response(res, true, MESSAGE.RECORD_RETRIVED, _response);
